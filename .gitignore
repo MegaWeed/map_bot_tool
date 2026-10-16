@@ -1,0 +1,9 @@
+out/
+*.class
+*.jar
+*.log
+/tessdata/
+/maps/
+CustomMaps/
+Settings/
+Saves/
