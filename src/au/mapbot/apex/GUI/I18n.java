@@ -155,7 +155,7 @@ public final class I18n {
 
         // bottom bar
         put("lbl.stream", "直播/回放链接", "Stream/VOD URL");
-        put("stream.tip", "填入 Twitch 直播或回放链接后点“开始记录”；留空则记录本机正在玩的对局", "Enter a Twitch stream/VOD URL then press Start; leave blank to record your local game");
+        put("stream.tip", "填入 Twitch / YouTube / B站（bilibili）直播或回放链接后点“开始记录”；留空则记录本机正在玩的对局", "Enter a Twitch / YouTube / Bilibili stream or VOD URL then press Start; leave blank to record your local game");
         put("stream.placeholder", "留空 = 记录本机对局", "Blank = record local game");
         put("btn.start", "开始记录", "Start recording");
         put("btn.stop", "停止", "Stop");

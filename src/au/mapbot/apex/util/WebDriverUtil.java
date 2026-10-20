@@ -59,6 +59,17 @@ public class WebDriverUtil {
     private String webpage;
 
     private boolean isYoutubeStarted = false;
+    private boolean isBilibiliStarted = false;
+
+    /** Bilibili video (bilibili.com/video/BV...), live room (live.bilibili.com/...) or short link (b23.tv). */
+    public static boolean isBilibili(String url) {
+        return url != null && (url.contains("bilibili.com") || url.contains("b23.tv"));
+    }
+
+    /** Pages that are opened directly in Chrome and captured from their own <video> element (not the Twitch embed). */
+    public static boolean isDirectPage(String url) {
+        return url != null && (url.contains("yout") || isBilibili(url));
+    }
 
     private HttpServer server;
     File destination;
@@ -166,7 +177,7 @@ public class WebDriverUtil {
     public WebDriverUtil(boolean isHeadless, String twitchPage) throws IOException {
         MBLogger.log("Init WebDriverUtil, isHeadless: " + isHeadless + " | Stream: " + twitchPage);
 
-        if (twitchPage.contains("yout")) {
+        if (isDirectPage(twitchPage)) {
             driver = createDriver(isHeadless);
             if (driver != null) {
                 driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
@@ -417,7 +428,8 @@ public class WebDriverUtil {
             try {
                 String userDataDir = "--user-data-dir=" + System.getProperty("user.dir") + "/Settings/Chrome0";
                 if (isHeadless){
-                    userDataDir = "--user-data-dir=" + System.getProperty("user.dir") + "/Settings/Chrome" + (server.getAddress().getPort()-8001);;
+                    int profileIndex = server != null ? server.getAddress().getPort() - 8001 : 0;
+                    userDataDir = "--user-data-dir=" + System.getProperty("user.dir") + "/Settings/Chrome" + profileIndex;
                 }
                 MBLogger.log(userDataDir);
                 String profileDirectory = "--profile-directory=" + "Mapbot";
@@ -480,12 +492,15 @@ public class WebDriverUtil {
         if (webpage.contains("youtu")){
             isYoutube = true;
             videoElement = "video.video-stream";
+        } else if (isBilibili(webpage)) {
+            // player of a video page, then the live room player, then any video as a last resort
+            videoElement = ".bpx-player-video-wrap video, .bilibili-player-video video, #live-player video, video";
         }
 
         WebElement videoPlayer = null;
 
         try {
-            if (webpage.contains("youtu")){
+            if (webpage.contains("youtu") || isBilibili(webpage)){
                 videoPlayer = driver.findElement(By.cssSelector(videoElement));
             }else {
                 videoPlayer = driver.findElement(By.cssSelector("iframe[src*='twitch.tv']"));
@@ -511,6 +526,8 @@ public class WebDriverUtil {
                 }
 
                 isYoutubeStarted = true;
+            } else if (isBilibili(webpage)) {
+                startBilibiliPlayback();
             }else {
 //                if (!isStreamOffline()) {
 //                    try {
@@ -594,6 +611,35 @@ public class WebDriverUtil {
         }
         MBLogger.log("Returned Null from Webdriver - screenShotVideo");
         return null;
+    }
+
+    /**
+     * Bilibili may not autoplay, and its default page layout shows a small player. Resume the video (muted so the
+     * browser's autoplay policy allows it) and, once, switch the player to web fullscreen so the capture is larger.
+     * Best effort only: if anything fails the user can still do it by hand in the Chrome window.
+     */
+    private void startBilibiliPlayback() {
+        try {
+            ((JavascriptExecutor) driver).executeScript(
+                    "var v = document.querySelector('.bpx-player-video-wrap video, .bilibili-player-video video, #live-player video, video');"
+                            + "if (v && v.paused) { v.muted = true; v.play(); }");
+        } catch (Exception ex) {
+            MBLogger.warning("Failed to start bilibili video", ex);
+        }
+
+        if (!isBilibiliStarted) {
+            isBilibiliStarted = true;
+            try {
+                // 网页全屏 button of the video player / live room player
+                List<WebElement> webFullscreen = driver.findElements(By.cssSelector(
+                        ".bpx-player-ctrl-web, .bilibili-player-video-web-fullscreen, .web-fullscreen"));
+                if (!webFullscreen.isEmpty()) {
+                    webFullscreen.get(0).click();
+                }
+            } catch (Exception ex) {
+                MBLogger.warning("Failed to switch bilibili player to web fullscreen", ex);
+            }
+        }
     }
 
     boolean isStreamOffline() {

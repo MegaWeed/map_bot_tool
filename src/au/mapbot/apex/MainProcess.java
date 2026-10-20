@@ -703,7 +703,9 @@ public class MainProcess {
 
         //initialise webdriver for first pass if stream/vod capture
         if (!isLocalGame && webDriverUtil == null){
-            if (isHeadless){
+            if (isHeadless && WebDriverUtil.isDirectPage(streamOrVodText)) {
+                webDriverUtil = new WebDriverUtil(true, streamOrVodText);
+            } else if (isHeadless){
                 WebDriverUtil.TwitchVodInfo tvi = WebDriverUtil.extractTwitchVodInfo(streamOrVodText);
                 if (tvi != null) {
                     if (tvi.getChannel() != null) {
